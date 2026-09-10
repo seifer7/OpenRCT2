@@ -19,6 +19,7 @@
 #include <openrct2-ui/interface/ViewportInteraction.h>
 #include <openrct2-ui/interface/Widget.h>
 #include <openrct2-ui/interface/Window.h>
+#include <openrct2-ui/view3d/Controller.h>
 #include <openrct2-ui/windows/Windows.h>
 #include <openrct2/Context.h>
 #include <openrct2/Game.h>
@@ -108,6 +109,11 @@ namespace OpenRCT2
      */
     void GameHandleInput()
     {
+        if (View3D::BlocksGameInput())
+        {
+            _mouseInputQueueReadIndex = _mouseInputQueueWriteIndex;
+            return;
+        }
         InvalidateAllWindowsAfterInput();
 
         MouseState state;
@@ -115,6 +121,11 @@ namespace OpenRCT2
         while ((state = GameGetNextInput(screenCoords)) != MouseState::released)
         {
             GameHandleInputMouse(screenCoords, state);
+            if (View3D::BlocksGameInput())
+            {
+                _mouseInputQueueReadIndex = _mouseInputQueueWriteIndex;
+                return;
+            }
         }
 
         if (gInputFlags.has(InputFlag::rightMousePressed))

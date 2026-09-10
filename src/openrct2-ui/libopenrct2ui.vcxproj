@@ -278,5 +278,6 @@
       <TargetMachine Condition="'$(Platform)'=='arm64'">MachineARM64</TargetMachine>
     </Lib>
   </ItemDefinitionGroup>
+  <Import Project="view3d\View3D.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

@@ -19,6 +19,7 @@
 #include "interface/Theme.h"
 #include "scripting/UiExtensions.h"
 #include "title/TitleSequencePlayer.h"
+#include "view3d/Controller.h"
 
 #include <SDL.h>
 #include <cmath>
@@ -96,8 +97,24 @@ private:
 
     InGameConsole _inGameConsole;
     std::unique_ptr<ITitleSequencePlayer> _titleSequencePlayer;
+    View3D::Controller _view3D{ *this, _inputManager, _cursorState };
 
 public:
+    View3D::Controller& GetView3DController()
+    {
+        return _view3D;
+    }
+
+    void CloseSceneOverride() override
+    {
+        _view3D.leave();
+    }
+
+    bool DrawSceneOverride(RenderTarget& rt) override
+    {
+        return _view3D.draw(rt);
+    }
+
     InGameConsole& GetInGameConsole()
     {
         return _inGameConsole;
@@ -356,6 +373,8 @@ public:
         SDL_Event e;
         while (SDL_PollEvent(&e))
         {
+            if (_view3D.handleEvent(e))
+                continue;
             switch (e.type)
             {
                 case SDL_QUIT:
@@ -597,6 +616,7 @@ public:
         // Updates the state of the keys
         int32_t numKeys = 256;
         _keysState = SDL_GetKeyboardState(&numKeys);
+        _view3D.finishEvents();
     }
 
     /**
@@ -642,6 +662,7 @@ public:
 
     void CloseWindow() override
     {
+        _view3D.leave();
         DrawingEngineDispose();
         if (_window != nullptr)
         {
@@ -1104,4 +1125,9 @@ ShortcutManager& Ui::GetShortcutManager()
 {
     auto& uiContext = static_cast<UiContext&>(GetContext()->GetUiContext());
     return uiContext.GetShortcutManager();
+}
+
+View3D::Controller& View3D::GetController()
+{
+    return static_cast<UiContext&>(GetContext()->GetUiContext()).GetView3DController();
 }

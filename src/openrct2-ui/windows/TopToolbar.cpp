@@ -10,6 +10,7 @@
 #include "../UiContext.h"
 #include "../interface/InGameConsole.h"
 #include "../scripting/CustomMenu.h"
+#include "../view3d/Controller.h"
 
 #include <openrct2-ui/interface/Dropdown.h>
 #include <openrct2-ui/interface/Widget.h>
@@ -133,6 +134,8 @@ namespace OpenRCT2::Ui::Windows
         DDIDX_HIGHLIGHT_PATH_ISSUES = 19,
         // separator
         DDIDX_TRANSPARENCY = 21,
+        // separator
+        DDIDX_3D_VIEW = 23,
 
         TOP_TOOLBAR_VIEW_MENU_COUNT,
     };
@@ -305,6 +308,9 @@ namespace OpenRCT2::Ui::Windows
             static_assert(ItemIDsMatchIndices(items));
 
             SetItems(items);
+            static_assert(std::size(items) + 2 == TOP_TOOLBAR_VIEW_MENU_COUNT);
+            gDropdown.items[DDIDX_3D_VIEW - 1] = Separator();
+            gDropdown.items[DDIDX_3D_VIEW] = MenuLabel("3D View");
 
             WindowDropdownShowText(
                 { windowPos.x + widget.left, windowPos.y + widget.top }, widget.height(),
@@ -404,6 +410,9 @@ namespace OpenRCT2::Ui::Windows
                         break;
                     case DDIDX_TRANSPARENCY:
                         ContextOpenWindow(WindowClass::transparency);
+                        break;
+                    case DDIDX_3D_VIEW:
+                        View3D::Enter();
                         break;
                     default:
                         return;

@@ -106,6 +106,13 @@ namespace OpenRCT2
             virtual void InitialiseScriptExtensions() = 0;
             virtual void Tick() = 0;
             virtual void Draw(Drawing::RenderTarget& rt) = 0;
+            virtual bool DrawSceneOverride(Drawing::RenderTarget&)
+            {
+                return false;
+            }
+            virtual void CloseSceneOverride()
+            {
+            }
 
             // Window
             virtual void CreateWindow() = 0;

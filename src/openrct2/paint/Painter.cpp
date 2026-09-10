@@ -47,6 +47,11 @@ void Painter::Paint(IDrawingEngine& de)
     PROFILED_FUNCTION();
 
     auto rt = de.getRT();
+    if (_uiContext.DrawSceneOverride(*rt))
+    {
+        gCurrentDrawCount++;
+        return;
+    }
 
     if (IntroIsPlaying())
     {

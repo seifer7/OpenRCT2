@@ -40,6 +40,7 @@ set(test_files
    "${CMAKE_CURRENT_SOURCE_DIR}/TileElementsView.cpp"
    "${CMAKE_CURRENT_SOURCE_DIR}/WidgetStateTests.cpp")
 
+include("${CMAKE_CURRENT_LIST_DIR}/view3d/sources.cmake")
 add_executable(OpenRCT2Tests ${test_files})
 add_executable(OpenRCT2::OpenRCT2Tests ALIAS OpenRCT2Tests)
 

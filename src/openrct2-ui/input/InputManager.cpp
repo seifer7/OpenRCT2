@@ -19,6 +19,7 @@
 #include <openrct2-ui/input/ShortcutManager.h>
 #include <openrct2-ui/interface/InGameConsole.h>
 #include <openrct2-ui/interface/Window.h>
+#include <openrct2-ui/view3d/Controller.h>
 #include <openrct2-ui/windows/Windows.h>
 #include <openrct2/Context.h>
 #include <openrct2/Input.h>
@@ -198,12 +199,29 @@ void InputManager::updateAnalogueScroll()
 
 void InputManager::process()
 {
+    if (View3D::BlocksGameInput())
+    {
+        reset();
+        return;
+    }
     checkJoysticks();
     processAnalogueInput();
     handleModifiers();
     processEvents();
     processHoldEvents();
     handleViewScrolling();
+}
+
+void InputManager::reset()
+{
+    _events = {};
+    _viewScroll = {};
+    _analogueScroll = {};
+    _analogueScrollAccumX = 0;
+    _analogueScrollAccumY = 0;
+    _mouseState = 0;
+    _keyboardState.clear();
+    _modifierKeyState = EnumValue(ModifierKey::none);
 }
 
 void InputManager::handleViewScrolling()

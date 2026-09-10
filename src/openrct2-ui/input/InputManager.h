@@ -93,5 +93,6 @@ namespace OpenRCT2::Ui
         void queueInputEvent(const SDL_Event& e);
         void queueInputEvent(InputEvent&& e);
         void process();
+        void reset();
     };
 } // namespace OpenRCT2::Ui

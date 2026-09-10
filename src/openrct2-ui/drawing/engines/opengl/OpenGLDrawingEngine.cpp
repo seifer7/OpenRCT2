@@ -27,6 +27,7 @@
     #include <algorithm>
     #include <cassert>
     #include <cmath>
+    #include <openrct2-ui/view3d/Controller.h>
     #include <openrct2/config/Config.h>
     #include <openrct2/drawing/Drawing.Sprite.h>
     #include <openrct2/drawing/Drawing.String.h>
@@ -336,6 +337,11 @@ public:
 
     void EndDraw() override
     {
+        if (View3D::IsActive())
+        {
+            _drawingContext->GetFinalFramebuffer().Bind();
+            View3D::GetController().presentOpenGL();
+        }
         _drawingContext->FlushCommandBuffers();
 
         glDisable(GL_DEPTH_TEST);

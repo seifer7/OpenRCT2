@@ -128,6 +128,7 @@
       <Project>{d24d94f6-2a74-480c-b512-629c306ce92f}</Project>
     </ProjectReference>
   </ItemGroup>
+  <Import Project="view3d\View3D.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
 
