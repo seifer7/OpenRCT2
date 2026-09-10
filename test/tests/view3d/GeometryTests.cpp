@@ -7,8 +7,11 @@
  * OpenRCT2 is licensed under the GNU General Public License version 3.
  *****************************************************************************/
 
+#include <algorithm>
 #include <gtest/gtest.h>
 #include <openrct2-ui/view3d/TerrainGeometry.h>
+#include <openrct2-ui/view3d/TileTexture.h>
+#include <openrct2/drawing/PaletteMap.h>
 #include <openrct2/world/Map.h>
 
 using namespace OpenRCT2;
@@ -120,4 +123,195 @@ TEST(Map3DGeometry, PerspectiveProjectsCenterAndForeshortensDistance)
     EXPECT_FLOAT_EQ(nearPoint.x - center.x, 2 * (farPoint.x - center.x));
     EXPECT_FLOAT_EQ(center.y - nearPoint.y, 2 * (center.y - farPoint.y));
     EXPECT_GT(nearPoint.z, farPoint.z);
+}
+
+TEST(Map3DTextures, UnprojectsDiamondWithoutMirroring)
+{
+    FlatTileSprite sprite{};
+    sprite[32] = static_cast<Drawing::PaletteIndex>(10);
+    sprite[15 * 64 + 1] = static_cast<Drawing::PaletteIndex>(20);
+    sprite[31 * 64 + 32] = static_cast<Drawing::PaletteIndex>(30);
+    sprite[15 * 64 + 63] = static_cast<Drawing::PaletteIndex>(40);
+    const auto pixels = ExtractTileTexture(sprite);
+    EXPECT_EQ(pixels[0], static_cast<Drawing::PaletteIndex>(10));
+    EXPECT_EQ(pixels[31], static_cast<Drawing::PaletteIndex>(20));
+    EXPECT_EQ(pixels[31 * 32 + 31], static_cast<Drawing::PaletteIndex>(30));
+    EXPECT_EQ(pixels[31 * 32], static_cast<Drawing::PaletteIndex>(40));
+}
+
+TEST(Map3DTextures, PreservesPaletteAndTransparentPathPixels)
+{
+    FlatTileSprite sprite{};
+    sprite[16 * 64 + 32] = static_cast<Drawing::PaletteIndex>(154);
+    const auto pixels = ExtractTileTexture(sprite);
+    EXPECT_EQ(pixels[16 * 32 + 16], static_cast<Drawing::PaletteIndex>(154));
+    EXPECT_EQ(pixels[0], Drawing::PaletteIndex::transparent);
+    EXPECT_EQ(pixels[31 * 32 + 31], Drawing::PaletteIndex::transparent);
+    sprite.fill(static_cast<Drawing::PaletteIndex>(246));
+    const auto solid = ExtractTileTexture(sprite);
+    EXPECT_TRUE(std::all_of(solid.begin(), solid.end(), [](auto pixel) {
+        return pixel == static_cast<Drawing::PaletteIndex>(246);
+    }));
+}
+
+TEST(Map3DTextures, NativeDiamondHasNoTransparentTileSeams)
+{
+    FlatTileSprite sprite{};
+    for (int32_t y = 0; y < 32; ++y)
+    {
+        const auto halfWidth = 2 * std::min(y + 1, 32 - y);
+        for (int32_t x = 32 - halfWidth; x < 32 + halfWidth; ++x)
+            sprite[y * 64 + x] = static_cast<Drawing::PaletteIndex>(144);
+    }
+    const auto pixels = ExtractTileTexture(sprite);
+    EXPECT_TRUE(std::all_of(pixels.begin(), pixels.end(), [](auto pixel) {
+        return pixel == static_cast<Drawing::PaletteIndex>(144);
+    }));
+}
+
+TEST(Map3DTextures, ConnectedPathsReachBothEdgesWithoutFillingTheVerges)
+{
+    for (const bool alongX : { false, true })
+    {
+        FlatTileSprite sprite{};
+        for (int32_t y = 0; y < 32; ++y)
+        {
+            for (int32_t x = 0; x < 64; ++x)
+            {
+                const float worldX = y + 0.5f - (x - 31.5f) * 0.5f;
+                const float worldY = y + 0.5f + (x - 31.5f) * 0.5f;
+                const auto along = alongX ? worldX : worldY;
+                const auto across = alongX ? worldY : worldX;
+                if (along >= 0 && along < 32 && across >= 4 && across < 28)
+                    sprite[y * 64 + x] = static_cast<Drawing::PaletteIndex>(154);
+            }
+        }
+        const auto pixels = ExtractTileTexture(sprite);
+        for (int32_t i = 8; i < 24; ++i)
+        {
+            EXPECT_EQ(pixels[alongX ? i * 32 : i], static_cast<Drawing::PaletteIndex>(154));
+            EXPECT_EQ(pixels[alongX ? i * 32 + 31 : 31 * 32 + i], static_cast<Drawing::PaletteIndex>(154));
+            EXPECT_EQ(pixels[alongX ? i : i * 32], Drawing::PaletteIndex::transparent);
+            EXPECT_EQ(pixels[alongX ? 31 * 32 + i : i * 32 + 31], Drawing::PaletteIndex::transparent);
+        }
+    }
+}
+
+TEST(Map3DTextures, CoordinatesFollowWorldXYNotHeightOrCamera)
+{
+    const Vector origin{ 320, 640, 0 };
+    const auto near = TileTextureCoordinates({ 320, 640, 160 }, origin);
+    const auto far = TileTextureCoordinates({ 352, 672, 192 }, origin);
+    const auto center = TileTextureCoordinates({ 336, 656, 176 }, origin);
+    EXPECT_FLOAT_EQ(near.x, 0);
+    EXPECT_FLOAT_EQ(near.y, 0);
+    EXPECT_FLOAT_EQ(far.x, 1);
+    EXPECT_FLOAT_EQ(far.y, 1);
+    EXPECT_FLOAT_EQ(center.x, 0.5f);
+    EXPECT_FLOAT_EQ(center.y, 0.5f);
+}
+
+TEST(Map3DTextures, PathSpriteSelectionPreservesEdgesAndFilledCorners)
+{
+    for (uint8_t edges = 0; edges < 16; ++edges)
+        EXPECT_EQ(FlatPathImageOffset(edges), edges);
+    EXPECT_EQ(FlatPathImageOffset(0x13), 20);
+    EXPECT_EQ(FlatPathImageOffset(0x26), 21);
+    EXPECT_EQ(FlatPathImageOffset(0x4C), 29);
+    EXPECT_EQ(FlatPathImageOffset(0x89), 25);
+    EXPECT_EQ(FlatPathImageOffset(0xFF), 50);
+}
+
+TEST(Map3DTextures, PathRampsHaveCorrectDirectionAndHeight)
+{
+    constexpr bool raised[4][4] = { { true, false, false, true }, { false, false, true, true },
+                                    { false, true, true, false }, { true, true, false, false } };
+    for (uint8_t direction = 0; direction < 4; ++direction)
+    {
+        const auto vertices = PathVertices(32, true, direction);
+        for (size_t corner = 0; corner < 4; ++corner)
+            EXPECT_FLOAT_EQ(vertices[corner].z, raised[direction][corner] ? 48.0f : 32.0f);
+        EXPECT_FLOAT_EQ(vertices[4].z, 40);
+        const auto flat = PathVertices(32, false, direction);
+        for (auto vertex : flat)
+            EXPECT_FLOAT_EQ(vertex.z, 32);
+    }
+}
+
+TEST(Map3DTextures, MissingMaterialDoesNotAllocateATexture)
+{
+    TileTextureCache cache;
+    EXPECT_EQ(cache.getLayer(ImageId()), -1);
+    EXPECT_TRUE(cache.entries().empty());
+}
+
+TEST(Map3DWater, BlendTableMatchesGamePaletteAndRetainsTerrainDetail)
+{
+    std::array<Drawing::PaletteIndex, 6 * 256> maps{};
+    for (size_t row = 0; row < 6; ++row)
+    {
+        for (size_t colour = 0; colour < 256; ++colour)
+            maps[row * 256 + colour] = static_cast<Drawing::PaletteIndex>((colour + (row + 1) * 17) % 256);
+    }
+    G1Element source{};
+    source.offset = reinterpret_cast<uint8_t*>(maps.data());
+    source.width = 256;
+    source.height = 6;
+    const Drawing::PaletteMap gameMap(maps.data(), 6, 256);
+    const auto texture = BuildWaterBlendPalette(&source);
+    ASSERT_EQ(texture.size(), 7u * 256);
+    for (size_t colour = 0; colour < 256; ++colour)
+    {
+        EXPECT_EQ(texture[colour], static_cast<Drawing::PaletteIndex>(colour));
+        for (size_t row = 1; row <= 6; ++row)
+            EXPECT_EQ(
+                texture[row * 256 + colour],
+                gameMap.Blend(static_cast<Drawing::PaletteIndex>(row), static_cast<Drawing::PaletteIndex>(colour)));
+    }
+    EXPECT_NE(texture[256 + 144], texture[256 + 150]);
+}
+
+TEST(Map3DWater, MissingOrInvalidBlendTablePreservesUnderlyingScene)
+{
+    G1Element malformed{};
+    uint8_t pixel = 0;
+    malformed.offset = &pixel;
+    malformed.width = 1;
+    malformed.height = 1;
+    for (const auto* source : { static_cast<const G1Element*>(nullptr), static_cast<const G1Element*>(&malformed) })
+    {
+        const auto texture = BuildWaterBlendPalette(source);
+        ASSERT_EQ(texture.size(), 256u);
+        for (size_t colour = 0; colour < 256; ++colour)
+            EXPECT_EQ(texture[colour], static_cast<Drawing::PaletteIndex>(colour));
+    }
+}
+
+TEST(Map3DWater, NativeMaskLevelsAreNotConvertedToOpaqueColours)
+{
+    FlatTileSprite sprite{};
+    sprite[32] = static_cast<Drawing::PaletteIndex>(1);
+    sprite[15 * 64 + 1] = static_cast<Drawing::PaletteIndex>(2);
+    sprite[31 * 64 + 32] = static_cast<Drawing::PaletteIndex>(6);
+    const auto texture = ExtractTileTexture(sprite);
+    EXPECT_EQ(texture[0], static_cast<Drawing::PaletteIndex>(1));
+    EXPECT_EQ(texture[31], static_cast<Drawing::PaletteIndex>(2));
+    EXPECT_EQ(texture[31 * 32 + 31], static_cast<Drawing::PaletteIndex>(6));
+    EXPECT_EQ(texture[31 * 32], Drawing::PaletteIndex::transparent);
+}
+
+TEST(Map3DWater, SurfaceIsFlatAtWaterHeightAndMeetsAdjacentTiles)
+{
+    const Vector origin{ 320, 640, 16 };
+    const auto vertices = WaterVertices(origin, 96);
+    const auto next = WaterVertices({ 352, 640, 128 }, 96);
+    for (const auto vertex : vertices)
+        EXPECT_FLOAT_EQ(vertex.z, 96);
+    EXPECT_FLOAT_EQ(vertices[1].x, next[0].x);
+    EXPECT_FLOAT_EQ(vertices[1].y, next[0].y);
+    EXPECT_FLOAT_EQ(vertices[2].x, next[3].x);
+    EXPECT_FLOAT_EQ(vertices[2].y, next[3].y);
+    const auto uv = TileTextureCoordinates(vertices[2], origin);
+    EXPECT_FLOAT_EQ(uv.x, 1);
+    EXPECT_FLOAT_EQ(uv.y, 1);
 }

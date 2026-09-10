@@ -23,5 +23,5 @@ namespace OpenRCT2::Ui::View3D
 
     MapCameraStart GetMapCameraStart();
     float GetMapExtent();
-    void DrawMap(Renderer& renderer);
+    void DrawMap(Renderer& renderer, bool gridlines = false);
 } // namespace OpenRCT2::Ui::View3D

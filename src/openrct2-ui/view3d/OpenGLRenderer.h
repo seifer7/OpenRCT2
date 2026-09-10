@@ -15,6 +15,8 @@
 
 namespace OpenRCT2::Ui::View3D
 {
+    class TileTextureCache;
+
     class OpenGLRenderer final : public Renderer
     {
     public:
@@ -25,6 +27,10 @@ namespace OpenRCT2::Ui::View3D
 
         void beginFrame(int32_t width, int32_t height, const Camera& camera) override;
         void triangle(Vector a, Vector b, Vector c, uint8_t colour) override;
+        void texturedTriangle(
+            Vector a, Vector b, Vector c, Vector origin, const ImageId& image, uint8_t colour, bool cutout = false) override;
+        void waterQuad(
+            Vector a, Vector b, Vector c, Vector d, Vector origin, const ImageId& mask, const ImageId& overlay) override;
         void render();
 
     private:
@@ -32,10 +38,15 @@ namespace OpenRCT2::Ui::View3D
         {
             Vector position;
             float colour;
+            Vector texture{ 0, 0, -1 };
+            float cutout{};
         };
         struct Resources;
         std::unique_ptr<Resources> _resources;
+        std::unique_ptr<TileTextureCache> _textures;
         std::vector<Vertex> _vertices;
+        std::vector<Vertex> _waterVertices;
+        int32_t _waterOverlay = -1;
         Camera _camera;
         int32_t _width{}, _height{};
     };

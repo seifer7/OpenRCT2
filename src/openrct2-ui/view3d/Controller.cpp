@@ -15,12 +15,18 @@
 #include "Presentation.h"
 
 #include <SDL.h>
+#include <openrct2-ui/UiContext.h>
 #include <openrct2-ui/input/InputManager.h>
+#include <openrct2-ui/input/ShortcutIds.h>
+#include <openrct2-ui/input/ShortcutManager.h>
+#include <openrct2-ui/interface/Window.h>
 #include <openrct2/Input.h>
 #include <openrct2/config/Config.h>
 #include <openrct2/drawing/Drawing.Screen.h>
 #include <openrct2/drawing/IDrawingEngine.h>
+#include <openrct2/drawing/Palette.h>
 #include <openrct2/drawing/RenderTarget.h>
+#include <openrct2/interface/Viewport.h>
 #include <openrct2/ui/UiContext.h>
 #include <stdexcept>
 
@@ -56,7 +62,11 @@ namespace OpenRCT2::Ui::View3D
                                      keys[SDL_SCANCODE_LSHIFT] != 0 };
             camera.move(dt, input, GetMapExtent());
             renderer.beginFrame(rt.width, rt.height, camera);
-            DrawMap(renderer);
+            const auto* window = WindowGetMain();
+            const bool gridlines = window != nullptr && window->viewport != nullptr
+                && (window->viewport->flags & VIEWPORT_FLAG_GRIDLINES) != 0;
+            DrawMap(renderer, gridlines);
+            Drawing::UpdatePaletteEffects();
             presentation.drawOverlay(rt);
             frameReady = true;
         }
@@ -148,6 +158,13 @@ namespace OpenRCT2::Ui::View3D
             else if (event.type == SDL_MOUSEMOTION && (event.motion.state & SDL_BUTTON_RMASK) != 0)
             {
                 _session->camera.look(event.motion.xrel, event.motion.yrel);
+            }
+            else if (event.type == SDL_KEYDOWN && event.key.repeat == 0)
+            {
+                GetShortcutManager().processEventForSpecificShortcut(
+                    { InputDeviceKind::keyboard, event.key.keysym.mod, static_cast<uint32_t>(event.key.keysym.sym),
+                      InputEventState::down },
+                    ShortcutId::kViewToggleGridlines);
             }
         }
         return blocksGameInput() && event.type != SDL_QUIT && event.type != SDL_WINDOWEVENT;

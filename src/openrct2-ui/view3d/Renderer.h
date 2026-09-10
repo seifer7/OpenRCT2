@@ -14,6 +14,8 @@
 #include <span>
 #include <vector>
 
+struct ImageId;
+
 namespace OpenRCT2::Ui::View3D
 {
     class Renderer
@@ -22,6 +24,15 @@ namespace OpenRCT2::Ui::View3D
         virtual ~Renderer() = default;
         virtual void beginFrame(int32_t width, int32_t height, const Camera& camera);
         virtual void triangle(Vector a, Vector b, Vector c, uint8_t colour);
+        virtual void texturedTriangle(
+            Vector a, Vector b, Vector c, Vector, const ImageId&, uint8_t colour, bool = false)
+        {
+            triangle(a, b, c, colour);
+        }
+        virtual void waterQuad(Vector a, Vector b, Vector c, Vector d, Vector, const ImageId&, const ImageId&)
+        {
+            quad(a, b, c, d, 130);
+        }
         void quad(Vector a, Vector b, Vector c, Vector d, uint8_t colour);
         void box(Vector lower, Vector upper, uint8_t colour);
         std::span<const uint8_t> pixels() const

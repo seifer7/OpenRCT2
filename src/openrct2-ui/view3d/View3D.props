@@ -9,6 +9,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)Presentation.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Renderer.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)TerrainGeometry.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)TileTexture.h" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Controller.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)MapAdapter.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)OpenGLRenderer.cpp" />
